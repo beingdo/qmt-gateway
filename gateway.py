@@ -2,10 +2,12 @@ import os
 import sys
 import json
 import time
+import secrets
+import hmac
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from fastapi.responses import JSONResponse
 import uvicorn
 
@@ -21,16 +23,36 @@ app = FastAPI(title="QMT Gateway", version="0.1.0")
 # Config
 class Config:
     QMT_BIN = QMT_BIN
-    HOST = "0.0.0.0"
+    # Bind to the VPC-internal IP only — never 0.0.0.0, so this process
+    # never listens on the public NIC regardless of firewall/security-group
+    # misconfiguration. Override with QMT_GATEWAY_HOST if the internal IP changes.
+    HOST = os.environ.get("QMT_GATEWAY_HOST", "10.0.0.69")
     PORT = 8888
     LOG_DIR = Path(__file__).parent / "logs"
     CACHE_DIR = Path(__file__).parent / "cache"
+    TOKEN_FILE = Path(__file__).parent / "gateway_token.txt"
 
     def __init__(self):
         self.LOG_DIR.mkdir(exist_ok=True)
         self.CACHE_DIR.mkdir(exist_ok=True)
+        self.TOKEN = self._load_or_create_token()
+
+    def _load_or_create_token(self):
+        if self.TOKEN_FILE.exists():
+            return self.TOKEN_FILE.read_text(encoding="utf-8").strip()
+        token = secrets.token_urlsafe(32)
+        self.TOKEN_FILE.write_text(token, encoding="utf-8")
+        return token
 
 config = Config()
+
+def verify_token(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
+    provided = authorization[len("Bearer "):]
+    if not hmac.compare_digest(provided, config.TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return True
 
 def log(msg: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -50,7 +72,7 @@ def check_qmt_connection():
         return False, str(e)
 
 @app.get("/health")
-async def health():
+async def health(_: bool = Depends(verify_token)):
     connected, info = check_qmt_connection()
     if connected:
         return JSONResponse({
@@ -72,7 +94,8 @@ async def get_history(
     code: str = Query(..., description="Stock code, e.g. 600519.SH"),
     start: str = Query("20240101", description="Start date YYYYMMDD"),
     end: str = Query("20240110", description="End date YYYYMMDD"),
-    period: str = Query("1d", description="Period: 1d, 1w, 1m")
+    period: str = Query("1d", description="Period: 1d, 1w, 1m"),
+    _: bool = Depends(verify_token)
 ):
     try:
         connected, _ = check_qmt_connection()
@@ -111,7 +134,10 @@ async def get_history(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/quote/tick")
-async def get_tick(code: str = Query(..., description="Stock code, e.g. 600519.SH")):
+async def get_tick(
+    code: str = Query(..., description="Stock code, e.g. 600519.SH"),
+    _: bool = Depends(verify_token)
+):
     try:
         connected, _ = check_qmt_connection()
         if not connected:
@@ -140,6 +166,8 @@ async def get_tick(code: str = Query(..., description="Stock code, e.g. 600519.S
 @app.on_event("startup")
 async def startup_event():
     log("Gateway startup")
+    log(f"Auth token (from {config.TOKEN_FILE}): {config.TOKEN}")
+    log(f"Listening on {config.HOST}:{config.PORT} (internal-only, not public)")
     connected, info = check_qmt_connection()
     if connected:
         log(f"QMT connected, data_dir: {info}")

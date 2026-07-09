@@ -1,14 +1,30 @@
+import os
 import sys
 import requests
 import json
 import time
+from pathlib import Path
 
-BASE_URL = "http://localhost:8888"
+# Gateway now binds to the internal IP only (not 0.0.0.0/localhost) — test against
+# the same address AlphaDesk will use, so this test reflects real reachability.
+GATEWAY_HOST = os.environ.get("QMT_GATEWAY_HOST", "10.0.0.69")
+BASE_URL = f"http://{GATEWAY_HOST}:8888"
+
+TOKEN_FILE = Path(__file__).parent / "gateway_token.txt"
+
+def load_token():
+    if not TOKEN_FILE.exists():
+        print(f"ERROR: token file not found at {TOKEN_FILE}. Start gateway.py once to generate it.")
+        sys.exit(1)
+    return TOKEN_FILE.read_text(encoding="utf-8").strip()
+
+TOKEN = load_token()
+HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
 def test_health():
     print("\n=== Testing /health ===")
     try:
-        resp = requests.get(f"{BASE_URL}/health", timeout=5)
+        resp = requests.get(f"{BASE_URL}/health", headers=HEADERS, timeout=5)
         print(f"Status: {resp.status_code}")
         print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
         return resp.status_code == 200
@@ -22,6 +38,7 @@ def test_history():
         resp = requests.get(
             f"{BASE_URL}/quote/history",
             params={"code": "600519.SH", "start": "20240101", "end": "20240110"},
+            headers=HEADERS,
             timeout=10
         )
         print(f"Status: {resp.status_code}")
@@ -40,6 +57,7 @@ def test_tick():
         resp = requests.get(
             f"{BASE_URL}/quote/tick",
             params={"code": "600519.SH"},
+            headers=HEADERS,
             timeout=5
         )
         print(f"Status: {resp.status_code}")
@@ -54,6 +72,16 @@ def test_tick():
         print(f"ERROR: {repr(e)}")
         return False
 
+def test_no_token_rejected():
+    print("\n=== Testing no-token request is rejected ===")
+    try:
+        resp = requests.get(f"{BASE_URL}/health", timeout=5)
+        print(f"Status: {resp.status_code} (expect 401)")
+        return resp.status_code == 401
+    except Exception as e:
+        print(f"ERROR: {repr(e)}")
+        return False
+
 def main():
     print("QMT Gateway Test Suite")
     print(f"Base URL: {BASE_URL}")
@@ -64,7 +92,8 @@ def main():
     results = {
         "health": test_health(),
         "history": test_history(),
-        "tick": test_tick()
+        "tick": test_tick(),
+        "no_token_rejected": test_no_token_rejected()
     }
 
     print("\n" + "=" * 50)

@@ -61,6 +61,12 @@ cd C:\<qmt-gateway路径>
 & "C:\qmt\bin.x64\python.exe" gateway.py
 ```
 
+### 安全模型
+
+- **网关只监听内网 IP**（`gateway.py` 里 `Config.HOST`，默认 `10.0.0.69`，不是 `0.0.0.0`），即使 Windows 防火墙 / 云安全组配置有误，进程本身也不会在公网网卡上接受连接。如果这台机器的内网 IP 变了，用环境变量 `QMT_GATEWAY_HOST` 覆盖。
+- **所有接口都要求 `Authorization: Bearer <token>`**。Token 首次启动 `gateway.py` 时自动生成，写入同目录下的 `gateway_token.txt`（已加入 `.gitignore`，不会提交到仓库），启动日志也会打印一次。
+- 云厂商安全组和 Windows 防火墙的入站规则，**来源 IP 必须锁定为 CentOS VPS 的内网 IP**，不要用 `0.0.0.0/0`。
+
 ### 测试网关
 
 新开第三个 PowerShell 窗口：
@@ -70,12 +76,21 @@ cd C:\<qmt-gateway路径>
 & "C:\qmt\bin.x64\python.exe" test_gateway.py
 ```
 
-或用 curl（需要安装 curl）：
+会自动读取 `gateway_token.txt` 并测试鉴权、行情接口，以及"不带 Token 应被拒绝"。
+
+或用 curl 手动测试（把 `<TOKEN>` 换成 `gateway_token.txt` 里的内容）：
 
 ```powershell
-curl http://localhost:8888/health
-curl "http://localhost:8888/quote/history?code=600519.SH"
-curl "http://localhost:8888/quote/tick?code=600519.SH"
+curl -H "Authorization: Bearer <TOKEN>" http://10.0.0.69:8888/health
+curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/history?code=600519.SH"
+curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/tick?code=600519.SH"
+```
+
+CentOS 端调用示例：
+
+```bash
+TOKEN=$(cat gateway_token.txt)  # 需从 Windows 安全地拷贝过来一次，不要提交进任何仓库
+curl -H "Authorization: Bearer $TOKEN" http://10.0.0.69:8888/health
 ```
 
 ### 日志
