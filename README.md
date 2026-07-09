@@ -28,12 +28,22 @@ Windows 执行网关（FastAPI，本项目）
 - `GET /quote/history?code=600519.SH&start=20240101&end=20240110&period=1d` — 历史日线
 - `GET /quote/tick?code=600519.SH` — 实时快照
 
+### 路径说明
+
+QMT 安装目录含中文（如 `C:\国金证券QMT交易端`），部分工具对非 ASCII 路径处理不稳定。已在 Windows 上创建 NTFS 目录联结把它映射成纯英文路径，所有脚本统一走这条路径：
+
+```powershell
+New-Item -ItemType Junction -Path "C:\qmt" -Target "C:\国金证券QMT交易端"
+```
+
+`C:\qmt` 和真实中文路径指向同一份文件，两者等价。
+
 ### 前置条件
 
 1. **启动 Mini QMT 极简模式**，登录成功：
 
 ```powershell
-& "C:\国金证券QMT交易端\bin.x64\XtMiniQmt.exe"
+& "C:\qmt\bin.x64\XtMiniQmt.exe"
 ```
 
 保持这个窗口打开。
@@ -48,7 +58,7 @@ cd C:\<qmt-gateway路径>
 或手动：
 
 ```powershell
-& "C:\国金证券QMT交易端\bin.x64\python.exe" gateway.py
+& "C:\qmt\bin.x64\python.exe" gateway.py
 ```
 
 ### 测试网关
@@ -57,7 +67,7 @@ cd C:\<qmt-gateway路径>
 
 ```powershell
 cd C:\<qmt-gateway路径>
-& "C:\国金证券QMT交易端\bin.x64\python.exe" test_gateway.py
+& "C:\qmt\bin.x64\python.exe" test_gateway.py
 ```
 
 或用 curl（需要安装 curl）：

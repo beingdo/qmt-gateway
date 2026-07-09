@@ -9,8 +9,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 import uvicorn
 
-# Add QMT bin.x64 to path
-QMT_BIN = r"C:\国金证券QMT交易端\bin.x64"
+# Add QMT bin.x64 to path (via ASCII junction C:\qmt to avoid encoding issues in tooling)
+QMT_BIN = r"C:\qmt\bin.x64"
 if QMT_BIN not in sys.path:
     sys.path.insert(0, QMT_BIN)
 

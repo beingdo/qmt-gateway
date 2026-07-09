@@ -2,7 +2,7 @@ import os
 import sys
 import time
 
-QMT_BIN = r"C:\国金证券QMT交易端\bin.x64"
+QMT_BIN = r"C:\qmt\bin.x64"
 if QMT_BIN not in sys.path:
     sys.path.insert(0, QMT_BIN)
 

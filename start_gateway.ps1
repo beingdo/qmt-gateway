@@ -7,10 +7,9 @@ Write-Host "Starting QMT Gateway..." -ForegroundColor Cyan
 Write-Host "Ensure XtMiniQmt.exe is already running and logged in!" -ForegroundColor Yellow
 Write-Host ""
 
-# Try multiple paths
+# Uses ASCII junction C:\qmt -> real QMT install dir, to avoid encoding issues
 $PossiblePaths = @(
-    "C:\国金证券QMT交易端\bin.x64\python.exe",
-    "C:\Program Files\Sinolink Securities\QMT\bin.x64\python.exe"
+    "C:\qmt\bin.x64\python.exe"
 )
 
 $PythonPath = $null
