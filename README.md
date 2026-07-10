@@ -27,6 +27,7 @@ Windows 执行网关（FastAPI，本项目）
 - `GET /health` — QMT 连接状态检查
 - `GET /quote/history?code=600519.SH&start=20240101&end=20240110&period=1d` — 历史日线
 - `GET /quote/tick?code=600519.SH` — 实时快照
+- `GET /quote/intraday?code=600519.SH` — 今日分时（当天 tick 序列精简为价格/成交量时间序列，用于分时图）
 
 ### 路径说明
 
@@ -84,6 +85,7 @@ cd C:\<qmt-gateway路径>
 curl -H "Authorization: Bearer <TOKEN>" http://10.0.0.69:8888/health
 curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/history?code=600519.SH"
 curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/tick?code=600519.SH"
+curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/intraday?code=600519.SH"
 ```
 
 CentOS 端调用示例：
@@ -91,6 +93,7 @@ CentOS 端调用示例：
 ```bash
 TOKEN=$(cat gateway_token.txt)  # 需从 Windows 安全地拷贝过来一次，不要提交进任何仓库
 curl -H "Authorization: Bearer $TOKEN" http://10.0.0.69:8888/health
+curl -H "Authorization: Bearer $TOKEN" "http://10.0.0.69:8888/quote/intraday?code=600519.SH"
 ```
 
 ### 日志

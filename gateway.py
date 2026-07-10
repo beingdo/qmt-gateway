@@ -163,6 +163,54 @@ async def get_tick(
         log(f"Error in get_tick: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/quote/intraday")
+async def get_intraday(
+    code: str = Query(..., description="Stock code, e.g. 002475.SZ"),
+    _: bool = Depends(verify_token)
+):
+    try:
+        connected, _ = check_qmt_connection()
+        if not connected:
+            raise HTTPException(status_code=503, detail="QMT not connected")
+
+        today = time.strftime("%Y%m%d")
+        log(f"Fetching intraday: {code} {today}")
+        xtdata.subscribe_quote(code, period="tick", count=-1)
+        time.sleep(1)
+
+        data = xtdata.get_market_data_ex(
+            field_list=[],
+            stock_list=[code],
+            period="tick",
+            start_time=today,
+            end_time=today
+        )
+
+        df = data.get(code)
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail=f"No intraday data for {code}")
+
+        points = [
+            {"time": str(t), "price": p, "volume": v}
+            for t, p, v in zip(df.index.tolist(), df["lastPrice"].tolist(), df["volume"].tolist())
+        ]
+        pre_close = df["lastClose"].iloc[0]
+
+        return JSONResponse({
+            "code": code,
+            "date": today,
+            "pre_close": pre_close,
+            "count": len(points),
+            "points": points,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log(f"Error in get_intraday: {repr(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.on_event("startup")
 async def startup_event():
     log("Gateway startup")

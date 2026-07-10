@@ -72,6 +72,26 @@ def test_tick():
         print(f"ERROR: {repr(e)}")
         return False
 
+def test_intraday():
+    print("\n=== Testing /quote/intraday ===")
+    try:
+        resp = requests.get(
+            f"{BASE_URL}/quote/intraday",
+            params={"code": "600519.SH"},
+            headers=HEADERS,
+            timeout=10
+        )
+        print(f"Status: {resp.status_code}")
+        data = resp.json()
+        print(f"Got {data.get('count')} points, pre_close={data.get('pre_close')}")
+        if data.get('count'):
+            print("First point:", data['points'][0])
+            print("Last point:", data['points'][-1])
+        return resp.status_code == 200
+    except Exception as e:
+        print(f"ERROR: {repr(e)}")
+        return False
+
 def test_no_token_rejected():
     print("\n=== Testing no-token request is rejected ===")
     try:
@@ -93,6 +113,7 @@ def main():
         "health": test_health(),
         "history": test_history(),
         "tick": test_tick(),
+        "intraday": test_intraday(),
         "no_token_rejected": test_no_token_rejected()
     }
 
