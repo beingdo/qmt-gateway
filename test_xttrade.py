@@ -15,7 +15,9 @@ account_id_file = os.path.join(SCRIPT_DIR, "account_id.txt")
 # 首次用可以直接：echo 你的账号 > account_id.txt
 ACCOUNT_ID = os.environ.get("QMT_ACCOUNT_ID", "").strip()
 if not ACCOUNT_ID and os.path.isfile(account_id_file):
-    ACCOUNT_ID = open(account_id_file, "r", encoding="utf-8").read().strip()
+    # utf-8-sig：如果文件带 BOM（比如 PowerShell 的 `Out-File -Encoding utf8` 会加），
+    # 会自动去掉，避免账号字符串前面混入一个看不见的字符导致账号比对失败
+    ACCOUNT_ID = open(account_id_file, "r", encoding="utf-8-sig").read().strip()
 if not ACCOUNT_ID:
     print("请先设置账号：")
     print(f"  方式一：设置环境变量 QMT_ACCOUNT_ID")
