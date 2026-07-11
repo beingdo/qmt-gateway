@@ -5,3 +5,4 @@ __pycache__/
 .env
 venv/
 gateway_token.txt
+account_id.txt
