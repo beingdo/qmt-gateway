@@ -28,6 +28,10 @@ Windows 执行网关（FastAPI，本项目）
 - `GET /quote/history?code=600519.SH&start=20240101&end=20240110&period=1d` — 历史日线
 - `GET /quote/tick?code=600519.SH` — 实时快照
 - `GET /quote/intraday?code=600519.SH` — 今日分时（当天 tick 序列精简为价格/成交量时间序列，用于分时图）
+- `GET /account/positions` — 真实持仓（只读，返回 `stock_code`/`volume`/`can_use_volume`/`avg_price`/`market_value`）
+- `GET /account/asset` — 账户资金（只读，返回 `total_asset`/`cash`/`market_value`）
+
+`/account/*` 是纯查询接口，网关代码里不包含任何下单/撤单能力。
 
 ### 路径说明
 
@@ -68,6 +72,23 @@ cd C:\<qmt-gateway路径>
 - **所有接口都要求 `Authorization: Bearer <token>`**。Token 首次启动 `gateway.py` 时自动生成，写入同目录下的 `gateway_token.txt`（已加入 `.gitignore`，不会提交到仓库），启动日志也会打印一次。
 - 云厂商安全组和 Windows 防火墙的入站规则，**来源 IP 必须锁定为 CentOS VPS 的内网 IP**，不要用 `0.0.0.0/0`。
 
+### 配置资金账号（`/account/*` 接口需要）
+
+真实资金账号（数字账户）**绝不能写进代码**，因为这个仓库是 Public 的。配置方式二选一：
+
+- 环境变量 `QMT_ACCOUNT_ID`
+- 在 `qmt-gateway` 目录下新建 `account_id.txt`，第一行写账号（已加入 `.gitignore`，不会被提交）：
+
+```powershell
+"你的资金账号" | Out-File -Encoding utf8 account_id.txt
+```
+
+> 如果之前跑过 `test_xttrade.py`，多半已经建好这个文件了，可以直接复用，无需重复创建。
+
+`gateway.py` 启动时会读取这个账号，建立一个**长期复用的交易会话**（`XtQuantTrader.connect()` + `subscribe()` 只在启动时做一次，不会每次请求都重连）。如果没配置账号，或者 connect/subscribe 失败，网关仍会正常启动，只是 `/account/positions` 和 `/account/asset` 会返回 503 并说明原因；行情相关接口不受影响。
+
+配置或修改 `account_id.txt` 后，需要**重启网关服务**（`gateway.py`）才会生效。
+
 ### 测试网关
 
 新开第三个 PowerShell 窗口：
@@ -86,6 +107,8 @@ curl -H "Authorization: Bearer <TOKEN>" http://10.0.0.69:8888/health
 curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/history?code=600519.SH"
 curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/tick?code=600519.SH"
 curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/quote/intraday?code=600519.SH"
+curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/account/positions"
+curl -H "Authorization: Bearer <TOKEN>" "http://10.0.0.69:8888/account/asset"
 ```
 
 CentOS 端调用示例：

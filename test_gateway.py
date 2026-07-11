@@ -92,6 +92,40 @@ def test_intraday():
         print(f"ERROR: {repr(e)}")
         return False
 
+def test_account_positions():
+    print("\n=== Testing /account/positions ===")
+    try:
+        resp = requests.get(f"{BASE_URL}/account/positions", headers=HEADERS, timeout=10)
+        print(f"Status: {resp.status_code}")
+        if resp.status_code == 503:
+            # Acceptable when no account is configured on this machine yet.
+            print("Account not configured or trading session not connected:", resp.json())
+            return True
+        data = resp.json()
+        print(f"Got {data.get('count')} positions")
+        if data.get("count"):
+            print("First position:", data["positions"][0])
+        return resp.status_code == 200
+    except Exception as e:
+        print(f"ERROR: {repr(e)}")
+        return False
+
+def test_account_asset():
+    print("\n=== Testing /account/asset ===")
+    try:
+        resp = requests.get(f"{BASE_URL}/account/asset", headers=HEADERS, timeout=10)
+        print(f"Status: {resp.status_code}")
+        if resp.status_code == 503:
+            # Acceptable when no account is configured on this machine yet.
+            print("Account not configured or trading session not connected:", resp.json())
+            return True
+        data = resp.json()
+        print("Asset:", data.get("asset"))
+        return resp.status_code == 200
+    except Exception as e:
+        print(f"ERROR: {repr(e)}")
+        return False
+
 def test_no_token_rejected():
     print("\n=== Testing no-token request is rejected ===")
     try:
@@ -114,6 +148,8 @@ def main():
         "history": test_history(),
         "tick": test_tick(),
         "intraday": test_intraday(),
+        "account_positions": test_account_positions(),
+        "account_asset": test_account_asset(),
         "no_token_rejected": test_no_token_rejected()
     }
 
